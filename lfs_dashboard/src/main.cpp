@@ -15,7 +15,7 @@ void draw() {
   screen.setTextColor(TFT_CYAN, TFT_BLACK);
   screen.drawString("LIVE FOR SPEED", 12, 8, 2);
   screen.setTextColor(connected ? TFT_GREEN : TFT_ORANGE, TFT_BLACK);
-  screen.drawString(connected ? "LIVE" : "WAITING FOR LFS", 230, 8, 2);
+  screen.drawRightString(connected ? "LIVE" : "WAITING", 308, 8, 2);
 
   screen.setTextColor(TFT_WHITE, TFT_BLACK);
   screen.drawString("SPEED", 14, 39, 2);

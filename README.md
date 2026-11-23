@@ -6,6 +6,8 @@ STM32F411 DIY FFB wheel with BTS7960, Hall + AS5600 steering, pedals, H shifter 
 
 The CYD connects to the PC through its USB-UART port. LFS sends OutGauge UDP to a Python bridge, which sends speed, RPM, gear and pedal positions to the CYD. No wire between the STM32 and ESP32 is required.
 
+**Preview without hardware:** double-click `lfs_dashboard/preview.bat`, or run `python lfs_dashboard/preview.py`. A 2× window simulates the 320×240 CYD layout and cycles through acceleration, shifting, braking and neutral. It uses only Python's built-in Tkinter. The preview copies the dashboard layout; font rendering can differ from the ESP32.
+
 1. Flash `lfs_dashboard/` using PlatformIO and an ESP32-2432S028 with ILI9341 display (`pio run -d lfs_dashboard -t upload`). The display pin configuration is in `platformio.ini`; different CYD revisions may need changes.
 2. In the LFS installation folder, close LFS and edit `cfg.txt`:
 
