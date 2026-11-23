@@ -25,3 +25,5 @@ The CYD connects to the PC through its USB-UART port. LFS sends OutGauge UDP to 
 The bridge accepts 92-byte OutGauge packets, or 96 bytes when `OutGauge ID` is enabled. It sends `LFS,<km/h>,<rpm>,<gear>,<gas%>,<brake%>,<clutch%>` lines at 115200 baud. After two seconds without packets the dashboard shows waiting. The LFS OutGauge format and cockpit-view requirement are documented in the [LFS manual](https://en.lfsmanual.net/wiki/OutGauge).
 
 The CYD code has not yet been flashed or visually checked on the user's board. The STM32 project and dashboard are independent.
+
+If an earlier CYD build showed a white background, divider and pedal outlines but no text, rebuild and upload the current version. The PlatformIO configuration now enables fonts 2/4/7 and display inversion for the ILI9341_2 panel. If your panel has a different controller, its display settings may need adjustment.
