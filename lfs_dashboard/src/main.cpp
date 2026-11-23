@@ -10,44 +10,72 @@ char gear[8] = "N";
 bool connected = false;
 
 void draw() {
-  screen.fillScreen(TFT_BLACK);
-  screen.setTextDatum(TL_DATUM);
-  screen.setTextColor(TFT_CYAN, TFT_BLACK);
-  screen.drawString("LIVE FOR SPEED", 12, 8, 2);
-  screen.setTextColor(connected ? TFT_GREEN : TFT_ORANGE, TFT_BLACK);
-  screen.drawRightString(connected ? "LIVE" : "WAITING", 308, 8, 2);
-  // Segmented rev bar: color follows RPM even when no car redline is known.
-  constexpr int segments = 24;
-  int lit = constrain(rpm, 0, 8000) * segments / 8000;
-  for (int i = 0; i < segments; ++i) {
-    uint16_t color = i < 13 ? TFT_GREEN : (i < 19 ? TFT_YELLOW : TFT_RED);
-    screen.fillRect(12 + i * 13, 29, 10, 6, i < lit ? color : TFT_DARKGREY);
-  }
-
-  screen.setTextColor(TFT_WHITE, TFT_BLACK);
-  screen.drawString("SPEED", 14, 39, 2);
-  screen.setTextColor(TFT_CYAN, TFT_BLACK);
-  screen.drawString(String(speedKmh), 12, 60, 7);
-  screen.setTextColor(TFT_WHITE, TFT_BLACK);
-  screen.drawString("km/h", 205, 100, 2);
-  screen.drawFastHLine(12, 127, 296, TFT_DARKGREY);
-  screen.drawString("RPM", 15, 141, 2);
-  screen.setTextColor(TFT_YELLOW, TFT_BLACK);
-  screen.drawString(String(rpm), 14, 163, 4);
-  screen.setTextColor(TFT_WHITE, TFT_BLACK);
-  screen.drawString("GEAR", 232, 142, 2);
-  screen.setTextColor(TFT_GREEN, TFT_BLACK);
-  screen.drawString(gear, 238, 165, 4);
-
-  const int values[] = {throttle, brake, clutch};
-  const char *names[] = {"GAS", "BRK", "CLT"};
-  const uint16_t colors[] = {TFT_GREEN, TFT_RED, TFT_BLUE};
-  for (int i = 0; i < 3; ++i) {
-    int x = 14 + i * 102;
+  static bool first = true, oldConnected = false;
+  static int oldSpeed = -1, oldRpm = -1, oldLit = -1;
+  static int oldValues[3] = {-1, -1, -1};
+  static char oldGear[8] = "";
+  constexpr uint16_t panel = 0x10A2;
+  if (first) {
+    screen.fillScreen(TFT_BLACK);
+    screen.setTextDatum(TL_DATUM);
     screen.setTextColor(TFT_WHITE, TFT_BLACK);
-    screen.drawString(names[i], x, 205, 2);
-    screen.drawRect(x, 225, 88, 10, TFT_DARKGREY);
-    screen.fillRect(x + 1, 226, values[i] * 86 / 100, 8, colors[i]);
+    screen.drawString("RACE DASH", 12, 8, 2);
+    screen.drawFastHLine(12, 43, 296, panel);
+    screen.drawFastHLine(12, 166, 296, panel);
+    screen.drawString("SPEED", 14, 58, 2);
+    screen.drawString("GEAR", 160, 58, 2);
+    screen.drawString("RPM", 14, 174, 2);
+    screen.drawString("km/h", 99, 137, 2);
+    const char *names[] = {"THR", "BRK", "CLT"};
+    for (int i = 0; i < 3; ++i) {
+      int x = 14 + i * 102;
+      screen.drawString(names[i], x, 207, 2);
+      screen.drawRect(x + 37, 211, 52, 9, panel);
+    }
+    first = false;
+  }
+  if (connected != oldConnected || oldSpeed < 0) {
+    screen.fillRect(245, 6, 63, 22, TFT_BLACK);
+    screen.setTextColor(connected ? TFT_GREEN : TFT_ORANGE, TFT_BLACK);
+    screen.drawRightString(connected ? "LIVE" : "WAIT", 308, 8, 2);
+    oldConnected = connected;
+  }
+  // Update only segments whose state changed; the RPM range is 0..8000.
+  int lit = constrain(rpm, 0, 8000) * 20 / 8000;
+  if (lit != oldLit) {
+    for (int i = 0; i < 20; ++i) {
+      if (oldLit >= 0 && (i < lit) == (i < oldLit)) continue;
+      uint16_t color = i < 12 ? TFT_CYAN : (i < 16 ? TFT_YELLOW : TFT_RED);
+      screen.fillRect(12 + i * 15, 32, 12, 7, i < lit ? color : panel);
+    }
+    oldLit = lit;
+  }
+  if (speedKmh != oldSpeed) {
+    screen.fillRect(12, 85, 143, 52, TFT_BLACK);
+    screen.setTextColor(TFT_CYAN, TFT_BLACK);
+    screen.drawString(String(speedKmh), 12, 85, 7);
+    oldSpeed = speedKmh;
+  }
+  if (strcmp(gear, oldGear)) {
+    screen.fillRect(160, 79, 148, 82, TFT_BLACK);
+    screen.setTextColor(TFT_GREEN, TFT_BLACK);
+    screen.drawCentreString(gear, 234, 81, 8);
+    strcpy(oldGear, gear);
+  }
+  if (rpm != oldRpm) {
+    screen.fillRect(60, 173, 110, 29, TFT_BLACK);
+    screen.setTextColor(TFT_YELLOW, TFT_BLACK);
+    screen.drawString(String(rpm), 60, 174, 4);
+    oldRpm = rpm;
+  }
+  const int values[] = {throttle, brake, clutch};
+  const uint16_t colors[] = {TFT_GREEN, TFT_RED, TFT_CYAN};
+  for (int i = 0; i < 3; ++i) {
+    if (values[i] == oldValues[i]) continue;
+    int x = 14 + i * 102;
+    screen.fillRect(x + 38, 212, 50, 7, panel);
+    screen.fillRect(x + 38, 212, values[i] * 50 / 100, 7, colors[i]);
+    oldValues[i] = values[i];
   }
 }
 
