@@ -20,7 +20,7 @@ The CYD connects to the PC through its USB-UART port. LFS sends OutGauge UDP to 
    ```
 
 3. Install the bridge dependency with `python -m pip install -r lfs_dashboard/requirements.txt`.
-4. Find the CYD COM port in Windows Device Manager, then run `python lfs_dashboard/bridge.py --port COM5` (replace COM5). Close serial monitors first. Start driving in cockpit view in LFS.
+4. Double-click `lfs_dashboard/bridge.bat`, select the CYD COM port shown in the window, and start driving in cockpit view in LFS. You can also run `python lfs_dashboard/bridge.py --port COM5` (replace COM5). Close serial monitors and the preview's CYD connection first.
 
 The bridge accepts 92-byte OutGauge packets, or 96 bytes when `OutGauge ID` is enabled. It sends `LFS,<km/h>,<rpm>,<gear>,<gas%>,<brake%>,<clutch%>` lines at 115200 baud. After two seconds without packets the dashboard shows waiting. The LFS OutGauge format and cockpit-view requirement are documented in the [LFS manual](https://en.lfsmanual.net/wiki/OutGauge).
 
