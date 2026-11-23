@@ -149,33 +149,35 @@ class Preview:
     def draw(self):
         c = self.canvas
         c.delete("all")
-        self.text(12, 8, "LIVE FOR SPEED", 9, CYAN, bold=True)
-        self.text(308, 8, "LIVE" if self.playing else "WAITING", 9,
-                  GREEN if self.playing else ORANGE, anchor="ne", bold=True)
+        panel = "#123454"
         lit = min(24, max(0, self.rpm) * 24 // 8000)
         for i in range(24):
             color = GREEN if i < 13 else YELLOW if i < 19 else RED
-            c.create_rectangle((12+i*13)*SCALE, 29*SCALE,
-                               (22+i*13)*SCALE, 35*SCALE,
-                               fill=color if i < lit else GREY, outline="")
-        self.text(14, 39, "SPEED", 10, WHITE)
-        self.text(12, 56, self.speed, 40, CYAN, bold=True)
-        self.text(205, 100, "km/h", 9, WHITE)
-        c.create_line(12*SCALE, 127*SCALE, 308*SCALE, 127*SCALE, fill=GREY)
-        self.text(15, 141, "RPM", 10, WHITE)
-        self.text(14, 160, self.rpm, 23, YELLOW, bold=True)
-        self.text(232, 142, "GEAR", 10, WHITE)
-        self.text(238, 163, self.gear, 24, GREEN, bold=True)
+            c.create_rectangle((2+i*13)*SCALE, 1*SCALE,
+                               (13+i*13)*SCALE, 15*SCALE,
+                               fill=color if i < lit else panel, outline="")
+        self.text(12, 23, "RACE DASH", 9, WHITE, bold=True)
+        self.text(308, 23, "LIVE" if self.playing else "WAIT", 9,
+                  GREEN if self.playing else ORANGE, anchor="ne", bold=True)
+        c.create_line(12*SCALE, 49*SCALE, 308*SCALE, 49*SCALE, fill=panel)
+        self.text(14, 61, "SPEED", 10, WHITE)
+        self.text(160, 61, "GEAR", 10, WHITE)
+        self.text(12, 82, self.speed, 40, CYAN, bold=True)
+        self.text(234, 81, self.gear, 48, GREEN, anchor="n", bold=True)
+        self.text(99, 137, "km/h", 9, WHITE)
+        c.create_line(12*SCALE, 166*SCALE, 308*SCALE, 166*SCALE, fill=panel)
+        self.text(14, 174, "RPM", 10, WHITE)
+        self.text(60, 171, self.rpm, 23, YELLOW, bold=True)
         for i, (name, value, color) in enumerate((
-                ("GAS", self.throttle, GREEN), ("BRK", self.brake, RED),
-                ("CLT", self.clutch, BLUE))):
+                ("THR", self.throttle, GREEN), ("BRK", self.brake, RED),
+                ("CLT", self.clutch, CYAN))):
             x = 14 + i * 102
-            self.text(x, 205, name, 10, WHITE)
-            c.create_rectangle(x*SCALE, 225*SCALE, (x+88)*SCALE, 235*SCALE,
-                               outline=GREY)
-            c.create_rectangle((x+1)*SCALE, 226*SCALE,
-                               (x+1+86*max(0, min(100, value))/100)*SCALE,
-                               234*SCALE, fill=color, outline="")
+            self.text(x, 207, name, 10, WHITE)
+            c.create_rectangle((x+37)*SCALE, 211*SCALE, (x+89)*SCALE, 220*SCALE,
+                               outline=panel)
+            c.create_rectangle((x+38)*SCALE, 212*SCALE,
+                               (x+38+50*max(0, min(100, value))/100)*SCALE,
+                               219*SCALE, fill=color, outline="")
 
     def tick(self):
         if self.start is None:

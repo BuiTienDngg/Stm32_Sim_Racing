@@ -19,11 +19,11 @@ void draw() {
     screen.fillScreen(TFT_BLACK);
     screen.setTextDatum(TL_DATUM);
     screen.setTextColor(TFT_WHITE, TFT_BLACK);
-    screen.drawString("RACE DASH", 12, 8, 2);
-    screen.drawFastHLine(12, 43, 296, panel);
+    screen.drawString("RACE DASH", 12, 23, 2);
+    screen.drawFastHLine(12, 49, 296, panel);
     screen.drawFastHLine(12, 166, 296, panel);
-    screen.drawString("SPEED", 14, 58, 2);
-    screen.drawString("GEAR", 160, 58, 2);
+    screen.drawString("SPEED", 14, 61, 2);
+    screen.drawString("GEAR", 160, 61, 2);
     screen.drawString("RPM", 14, 174, 2);
     screen.drawString("km/h", 99, 137, 2);
     const char *names[] = {"THR", "BRK", "CLT"};
@@ -35,18 +35,18 @@ void draw() {
     first = false;
   }
   if (connected != oldConnected || oldSpeed < 0) {
-    screen.fillRect(245, 6, 63, 22, TFT_BLACK);
+    screen.fillRect(245, 21, 63, 22, TFT_BLACK);
     screen.setTextColor(connected ? TFT_GREEN : TFT_ORANGE, TFT_BLACK);
-    screen.drawRightString(connected ? "LIVE" : "WAIT", 308, 8, 2);
+    screen.drawRightString(connected ? "LIVE" : "WAIT", 308, 23, 2);
     oldConnected = connected;
   }
   // Update only segments whose state changed; the RPM range is 0..8000.
-  int lit = constrain(rpm, 0, 8000) * 20 / 8000;
+  int lit = constrain(rpm, 0, 8000) * 24 / 8000;
   if (lit != oldLit) {
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 24; ++i) {
       if (oldLit >= 0 && (i < lit) == (i < oldLit)) continue;
-      uint16_t color = i < 12 ? TFT_CYAN : (i < 16 ? TFT_YELLOW : TFT_RED);
-      screen.fillRect(12 + i * 15, 32, 12, 7, i < lit ? color : panel);
+      uint16_t color = i < 13 ? TFT_GREEN : (i < 19 ? TFT_YELLOW : TFT_RED);
+      screen.fillRect(2 + i * 13, 1, 11, 14, i < lit ? color : panel);
     }
     oldLit = lit;
   }
