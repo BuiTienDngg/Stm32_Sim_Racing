@@ -16,6 +16,13 @@ void draw() {
   screen.drawString("LIVE FOR SPEED", 12, 8, 2);
   screen.setTextColor(connected ? TFT_GREEN : TFT_ORANGE, TFT_BLACK);
   screen.drawRightString(connected ? "LIVE" : "WAITING", 308, 8, 2);
+  // Segmented rev bar: color follows RPM even when no car redline is known.
+  constexpr int segments = 24;
+  int lit = constrain(rpm, 0, 8000) * segments / 8000;
+  for (int i = 0; i < segments; ++i) {
+    uint16_t color = i < 13 ? TFT_GREEN : (i < 19 ? TFT_YELLOW : TFT_RED);
+    screen.fillRect(12 + i * 13, 29, 10, 6, i < lit ? color : TFT_DARKGREY);
+  }
 
   screen.setTextColor(TFT_WHITE, TFT_BLACK);
   screen.drawString("SPEED", 14, 39, 2);

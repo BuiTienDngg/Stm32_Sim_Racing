@@ -1,8 +1,12 @@
-"""Preview the CYD dashboard on a PC. No ESP32, LFS or extra packages needed."""
+"""CYD dashboard preview: demo or LFS OutGauge, optionally forwarded to CYD."""
 import argparse
 import math
+import socket
 import tkinter as tk
 import time
+from tkinter import ttk
+
+from bridge import decode
 
 
 SCALE = 2
@@ -37,6 +41,24 @@ class Preview:
         self.canvas = tk.Canvas(root, width=WIDTH * SCALE, height=HEIGHT * SCALE,
                                 bg=BLACK, highlightthickness=0)
         self.canvas.pack()
+        controls = ttk.Frame(root, padding=8)
+        controls.pack(fill="x")
+        self.ports = ttk.Combobox(controls, width=12, state="readonly")
+        self.ports.pack(side="left")
+        ttk.Button(controls, text="Refresh COM", command=self.refresh_ports).pack(side="left", padx=4)
+        self.connect_button = ttk.Button(controls, text="Connect CYD", command=self.toggle_serial)
+        self.connect_button.pack(side="left", padx=4)
+        self.mode_button = ttk.Button(controls, text="Use LFS", command=self.toggle_mode)
+        self.mode_button.pack(side="left", padx=4)
+        self.status = tk.StringVar(value="Demo · CYD disconnected")
+        ttk.Label(root, textvariable=self.status, padding=(8, 0, 8, 8)).pack(anchor="w")
+        self.serial_port = None
+        self.udp = None
+        self.lfs_mode = False
+        self.last_packet = 0.0
+        self.last_sent = 0.0
+        self.refresh_ports()
+        root.protocol("WM_DELETE_WINDOW", self.close)
         self.start = None
         self.playing = True
         self.speed = 0
@@ -45,6 +67,79 @@ class Preview:
         self.throttle = self.brake = self.clutch = 0
         self.draw()
         self.tick()
+
+    def refresh_ports(self):
+        try:
+            from serial.tools import list_ports
+            ports = [p.device for p in list_ports.comports()]
+        except ImportError:
+            self.status.set("Install pyserial: python -m pip install pyserial")
+            ports = []
+        current = self.ports.get()
+        self.ports["values"] = ports
+        if current in ports:
+            self.ports.set(current)
+        elif ports:
+            self.ports.current(0)
+        else:
+            self.ports.set("")
+
+    def toggle_serial(self):
+        if self.serial_port:
+            self.serial_port.close()
+            self.serial_port = None
+            self.connect_button.config(text="Connect CYD")
+            return
+        if not self.ports.get():
+            self.status.set("Select a COM port first")
+            return
+        try:
+            import serial
+            self.serial_port = serial.Serial(self.ports.get(), 115200, timeout=0, write_timeout=0.2)
+        except Exception as exc:
+            self.status.set(f"COM error: {exc}")
+            return
+        self.connect_button.config(text="Disconnect")
+        self.status.set(f"Connected to {self.ports.get()}; ESP32 may reset once")
+
+    def toggle_mode(self):
+        if self.lfs_mode:
+            self.udp.close()
+            self.udp = None
+            self.lfs_mode = False
+            self.mode_button.config(text="Use LFS")
+            self.start = time.monotonic()
+            return
+        try:
+            self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp.bind(("127.0.0.1", 30000))
+            self.udp.setblocking(False)
+        except OSError as exc:
+            if self.udp:
+                self.udp.close()
+                self.udp = None
+            self.status.set(f"UDP 30000 unavailable: {exc}; close bridge.py")
+            return
+        self.lfs_mode = True
+        self.last_packet = 0.0
+        self.mode_button.config(text="Use demo")
+
+    def send(self, payload):
+        if self.serial_port:
+            try:
+                self.serial_port.write(payload.encode("ascii"))
+            except Exception as exc:
+                self.status.set(f"COM disconnected: {exc}")
+                self.serial_port.close()
+                self.serial_port = None
+                self.connect_button.config(text="Connect CYD")
+
+    def close(self):
+        if self.udp:
+            self.udp.close()
+        if self.serial_port:
+            self.serial_port.close()
+        self.root.destroy()
 
     def text(self, x, y, value, size, color, anchor="nw", bold=False):
         self.canvas.create_text(x * SCALE, y * SCALE, text=str(value), anchor=anchor,
@@ -57,6 +152,12 @@ class Preview:
         self.text(12, 8, "LIVE FOR SPEED", 9, CYAN, bold=True)
         self.text(308, 8, "LIVE" if self.playing else "WAITING", 9,
                   GREEN if self.playing else ORANGE, anchor="ne", bold=True)
+        lit = min(24, max(0, self.rpm) * 24 // 8000)
+        for i in range(24):
+            color = GREEN if i < 13 else YELLOW if i < 19 else RED
+            c.create_rectangle((12+i*13)*SCALE, 29*SCALE,
+                               (22+i*13)*SCALE, 35*SCALE,
+                               fill=color if i < lit else GREY, outline="")
         self.text(14, 39, "SPEED", 10, WHITE)
         self.text(12, 56, self.speed, 40, CYAN, bold=True)
         self.text(205, 100, "km/h", 9, WHITE)
@@ -80,7 +181,38 @@ class Preview:
         if self.start is None:
             self.start = time.monotonic()
         elapsed = time.monotonic() - self.start
-        self.speed, self.rpm, self.gear, self.throttle, self.brake, self.clutch = demo_values(elapsed)
+        now = time.monotonic()
+        if self.lfs_mode:
+            try:
+                while True:
+                    packet, _ = self.udp.recvfrom(256)
+                    try:
+                        values = decode(packet)
+                    except ValueError:
+                        continue
+                    self.speed, self.rpm, self.gear, self.throttle, self.brake, self.clutch = values
+                    self.last_packet = now
+                    self.send("LFS," + ",".join(map(str, values)) + "\n")
+            except BlockingIOError:
+                pass
+            self.playing = self.last_packet > 0 and now - self.last_packet <= 2
+            if not self.playing and self.last_sent != -1:
+                self.speed = self.rpm = self.throttle = self.brake = self.clutch = 0
+                self.gear = "N"
+                self.send("STOP\n")
+                self.last_sent = -1
+            elif self.playing:
+                self.last_sent = now
+            self.status.set(f"LFS {'live' if self.playing else 'waiting'} · " +
+                            (f"CYD {self.ports.get()}" if self.serial_port else "CYD disconnected"))
+        else:
+            self.playing = True
+            self.speed, self.rpm, self.gear, self.throttle, self.brake, self.clutch = demo_values(elapsed)
+            if now - self.last_sent >= 0.1:
+                values = self.speed, self.rpm, self.gear, self.throttle, self.brake, self.clutch
+                self.send("LFS," + ",".join(map(str, values)) + "\n")
+                self.last_sent = now
+            self.status.set("Demo · " + (f"CYD {self.ports.get()}" if self.serial_port else "CYD disconnected"))
         self.draw()
         self.root.after(100, self.tick)
 

@@ -27,3 +27,5 @@ The bridge accepts 92-byte OutGauge packets, or 96 bytes when `OutGauge ID` is e
 The CYD code has not yet been flashed or visually checked on the user's board. The STM32 project and dashboard are independent.
 
 If an earlier CYD build showed a white background, divider and pedal outlines but no text, rebuild and upload the current version. The PlatformIO configuration now enables fonts 2/4/7 and display inversion for the ILI9341_2 panel. If your panel has a different controller, its display settings may need adjustment.
+
+The dashboard has a green-to-yellow-to-red RPM bar at the top (full at 8000 RPM). Run `lfs_dashboard/preview.bat` to open the PC preview. Choose the CYD USB-UART COM port and click **Connect CYD**. The default demo sends sample driving data to both the PC preview and the CYD. Click **Use LFS** to listen for OutGauge on UDP port 30000 and forward live values to the CYD. Close `bridge.py` before using LFS mode in the preview; both programs use the same UDP and serial ports. The preview requires `pyserial` for COM access: `python -m pip install pyserial`.

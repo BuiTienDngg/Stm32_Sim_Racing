@@ -4,7 +4,6 @@ import socket
 import struct
 import time
 
-import serial
 
 
 OUTGAUGE = struct.Struct("<I4sHBB7fII3f16s16s")
@@ -25,6 +24,7 @@ def decode(packet):
 
 
 def main():
+    import serial
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="ESP32 USB-UART COM port, e.g. COM5")
     parser.add_argument("--udp-port", type=int, default=30000)
