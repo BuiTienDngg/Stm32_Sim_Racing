@@ -1,0 +1,12 @@
+.mxproject
+**/__pycache__/
+*.pyc
+*.log
+*.bak
+*.uvguix.*
+*.uvoptx
+MDK-ARM/Objects/
+MDK-ARM/Listings/
+MDK-ARM/Stimulation_steering_wheel/
+lfs_dashboard/.pio/
+.vscode/
