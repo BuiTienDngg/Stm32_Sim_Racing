@@ -646,9 +646,10 @@ class WheelApp:
                 var.set(str(percent))
             self.deadzone_loaded = True
         physical, mapped = extra[:2]
-        if not self.ffb_limit_loaded and extra[14] == 0xA5:
-            self.ffb_limit.set(extra[13])
-            self.ffb_limit_state.set(f"Trần hiện tại: {extra[13]}% PWM")
+        # EXTRA_PAYLOAD is <II12B>: out[8] becomes tuple[2].
+        if not self.ffb_limit_loaded and extra[6] == 0xA5:
+            self.ffb_limit.set(extra[5])
+            self.ffb_limit_state.set(f"Trần hiện tại: {extra[5]}% PWM")
             self.ffb_limit_loaded = True
         elif not self.ffb_limit_loaded:
             self.ffb_limit_state.set("Cần nạp firmware mới để chỉnh trần FF")
