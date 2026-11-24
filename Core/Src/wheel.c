@@ -5,19 +5,13 @@
 #include "wheel.h"
 #include <string.h>
 
-#ifndef MAX_PWM_PERCENT
-#define MAX_PWM_PERCENT 70
-#endif
 #ifndef MOTOR_POLARITY
 #define MOTOR_POLARITY 1
 #endif
-_Static_assert(MAX_PWM_PERCENT >= 1 && MAX_PWM_PERCENT <= 90, "PWM limit must be 1–30%");
 _Static_assert(MOTOR_POLARITY == 1 || MOTOR_POLARITY == -1, "Motor polarity must be +1 or -1");
 
-enum { PWM_PERIOD = 4200, PWM_MAX = PWM_PERIOD * MAX_PWM_PERCENT / 100 };
+enum { PWM_PERIOD = 4200, DEFAULT_FFB_LIMIT_PERCENT = 35 };
 enum {
-    FFB_MIN_PWM = PWM_PERIOD * 60 / 100,
-    FFB_MAX_PWM = PWM_PERIOD,
     FFB_DEADBAND = 32767 * 5 / 100
 };
 enum { TEST_PULSE_MS = 400, BENCH_PULSE_MS = 1000, BENCH_STALL_MS = 200 };
@@ -52,6 +46,7 @@ static bool calibration_saved, bench_used;
 static int8_t raw_sign = 1, drive_direction;
 static int16_t applied_duty;
 static int16_t spin_duty;
+static uint8_t ffb_limit_percent = DEFAULT_FFB_LIMIT_PERCENT;
 static uint32_t pulse_start, movement_time;
 static int32_t last_movement;
 static int8_t pulse_direction;
@@ -110,8 +105,8 @@ static int32_t clamp(int32_t x, int32_t low, int32_t high) {
 static int32_t ffb_target(int32_t force) {
     int32_t magnitude = clamp(force < 0 ? -force : force, 0, 32767);
     if (magnitude <= FFB_DEADBAND) return 0;
-    int32_t duty = FFB_MIN_PWM + (magnitude - FFB_DEADBAND) * (FFB_MAX_PWM - FFB_MIN_PWM)
-                              / (32767 - FFB_DEADBAND);
+    int32_t duty = (magnitude - FFB_DEADBAND) * (PWM_PERIOD * ffb_limit_percent / 100)
+                   / (32767 - FFB_DEADBAND);
     return force < 0 ? -duty : duty;
 }
 
@@ -124,6 +119,8 @@ static void motor_off(void) {
 }
 
 static void motor_drive(int32_t target) {
+    int32_t limit = PWM_PERIOD * ffb_limit_percent / 100;
+    target = clamp(target, -limit, limit);
     if (!target) { motor_off(); return; }
     int8_t direction = target > 0 ? 1 : -1;
     if (drive_direction && direction != drive_direction) {
@@ -251,6 +248,8 @@ void wheel_extra_status(uint8_t *out) {
     out[8] = joy_calibration_saved ? 1 : 0;
     out[9] = pedal_samples_valid ? 1 : 0;
     out[10] = joy_next;
+    out[11] = ffb_limit_percent;
+    out[12] = 0xA5; // Identifies firmware with an adjustable PWM limit.
 }
 
 void wheel_deadzone_status(uint8_t *out) {
@@ -260,6 +259,16 @@ void wheel_deadzone_status(uint8_t *out) {
 
 void wheel_command(const uint8_t *data) {
     result = 1;
+    if (data[0] == 16) {
+        unsigned percent = data[1] | data[2] << 8;
+        if (percent < 10 || percent > 80 || applied_duty || pulse_direction || spin_duty ||
+            (pid_status() & PID_STATE_PLAYING)) return;
+        if (ffb_limit_percent == percent) { result = 0; return; }
+        if (!ffb_limit_save(percent)) { result = 2; return; }
+        ffb_limit_percent = percent;
+        result = 0;
+        return;
+    }
     if (data[0] == 15) {
         unsigned channel = data[1] | data[2] << 8;
         unsigned percent = data[3] | data[4] << 8;
@@ -495,7 +504,8 @@ static void update_motor(uint32_t now, int32_t force) {
         // Active steering stop, including when the game has no effect playing.
         pulse_direction = 0;
         int32_t penetration = clamp(distance - SOFT_STOP_START, 0, TRAVEL_LIMIT - SOFT_STOP_START);
-        int32_t duty = penetration * FFB_MAX_PWM / (TRAVEL_LIMIT - SOFT_STOP_START);
+        int32_t duty = penetration * (PWM_PERIOD * ffb_limit_percent / 100)
+                       / (TRAVEL_LIMIT - SOFT_STOP_START);
         motor_drive(position > 0 ? -duty : duty);
         return;
     }
@@ -514,7 +524,7 @@ static void update_motor(uint32_t now, int32_t force) {
         else { pulse_direction = 0; force = 0; }
     }
 
-    int32_t pwm_limit = bench_used ? BENCH_PWM_MAX : PWM_MAX;
+    int32_t pwm_limit = bench_used ? BENCH_PWM_MAX : PWM_PERIOD * ffb_limit_percent / 100;
     int32_t target = test_pulse ? force * pwm_limit / 32767 : ffb_target(force);
 
     int32_t delta = count - last_movement;
@@ -547,6 +557,7 @@ static void send_inputs(uint32_t now) {
 void wheel_init(void) {
     encoder_init();
     motor_off();
+    ffb_limit_load(&ffb_limit_percent);
     EncoderCalibration value;
     for (unsigned i = 0; i < PEDAL_COUNT; ++i)
         if (pedal_calibration_load(i, &pedal_ranges[i])) pedal_saved_mask |= 1u << i;

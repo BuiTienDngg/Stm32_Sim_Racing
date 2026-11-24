@@ -32,6 +32,8 @@ bool pedal_calibration_load(unsigned channel, PedalCalibration *value);
 bool pedal_calibration_save(unsigned channel, PedalCalibration value);
 bool pedal_deadzone_load(unsigned channel, uint8_t *percent);
 bool pedal_deadzone_save(unsigned channel, uint8_t percent);
+bool ffb_limit_load(uint8_t *percent);
+bool ffb_limit_save(uint8_t percent);
 
 typedef struct {
     int32_t hall_span;

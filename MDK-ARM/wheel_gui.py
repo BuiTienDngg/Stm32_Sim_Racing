@@ -111,6 +111,7 @@ class WheelApp:
         self.actual_map = None
         self.pedal_release = {}
         self.deadzone_loaded = False
+        self.ffb_limit_loaded = False
         self.deadzone_values = (0, 0, 0)
         self.angle_degrees = 0
         self.travel_degrees = 270
@@ -395,6 +396,24 @@ class WheelApp:
         label(steering, textvariable=self.steer_state, size=10,
               color=TEAL).pack(anchor="w", padx=17, pady=(8, 13))
 
+        force = card(section)
+        force.pack(fill="x", padx=22, pady=6)
+        label(force, "02  GIỚI HẠN LỰC FF", 11, "bold").pack(
+            anchor="w", padx=17, pady=(13, 4))
+        label(force, "Trần PWM cho mô-tơ, kể cả lực chặn cuối hành trình. Bắt đầu thấp rồi tăng dần.",
+              9, color=MUTED).pack(anchor="w", padx=17)
+        row = tk.Frame(force, bg=CARD)
+        row.pack(fill="x", padx=17, pady=8)
+        self.ffb_limit = tk.IntVar(value=35)
+        tk.Scale(row, from_=10, to=80, orient="horizontal", variable=self.ffb_limit,
+                 resolution=1, length=390, bg=CARD, fg=TEXT, troughcolor=CARD_ALT,
+                 highlightthickness=0).pack(side="left")
+        label(row, "% PWM", 10, color=MUTED).pack(side="left", padx=8)
+        button(row, "Lưu vào flash", self.save_ffb_limit, primary=True).pack(side="left", padx=16)
+        self.ffb_limit_state = tk.StringVar(value="Chờ đọc giới hạn từ firmware")
+        label(force, textvariable=self.ffb_limit_state, size=10,
+              color=TEAL).pack(anchor="w", padx=17, pady=(0, 13))
+
         pedals = card(section)
         pedals.pack(fill="x", padx=22, pady=6)
         label(pedals, "02  PEDAL", 11, "bold").pack(
@@ -564,6 +583,12 @@ class WheelApp:
                     lambda _: self.pedal_cal_state[channel].set(
                         f"Deadzone {percent}% đã lưu flash"))
 
+    def save_ffb_limit(self):
+        percent = self.ffb_limit.get()
+        self.submit("send", (16, percent),
+                    lambda _: self.ffb_limit_state.set(
+                        f"Đã lưu trần FF {percent}% vào flash"))
+
     def save_mapping(self):
         if self.actual_map is None:
             messagebox.showerror("Chưa đọc cấu hình", "Chờ kết nối và đọc bảng gán.")
@@ -594,6 +619,7 @@ class WheelApp:
                         self.nav_note.set("USB sẵn sàng. Xem tín hiệu trực tiếp.")
                         self.map_loaded = False
                         self.deadzone_loaded = False
+                        self.ffb_limit_loaded = False
                     else:
                         self.connection.set("●  CHƯA KẾT NỐI")
                         self.connection_chip.configure(fg=AMBER)
@@ -620,6 +646,12 @@ class WheelApp:
                 var.set(str(percent))
             self.deadzone_loaded = True
         physical, mapped = extra[:2]
+        if not self.ffb_limit_loaded and extra[14] == 0xA5:
+            self.ffb_limit.set(extra[13])
+            self.ffb_limit_state.set(f"Trần hiện tại: {extra[13]}% PWM")
+            self.ffb_limit_loaded = True
+        elif not self.ffb_limit_loaded:
+            self.ffb_limit_state.set("Cần nạp firmware mới để chỉnh trần FF")
         gear = next((str(i + 1) for i in range(6) if physical & (1 << (10 + i))),
                     "R" if physical & (1 << 16) else "N")
         self.gear_state.set(f"SỐ {gear}")

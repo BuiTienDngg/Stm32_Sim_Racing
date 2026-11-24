@@ -10,6 +10,7 @@
 #define JOYSTICK_COMMIT 0x4a4f5931u
 #define BUTTON_MAP_COMMIT 0x4d415031u
 #define PEDAL_DEADZONE_COMMIT 0x445a4e31u
+#define FFB_LIMIT_COMMIT 0x46464231u
 
 enum { CAL_WORDS = 5, CAL_SLOT_SIZE = CAL_WORDS * sizeof(uint32_t) };
 
@@ -124,6 +125,23 @@ bool pedal_deadzone_load(unsigned channel, uint8_t *percent) {
 bool pedal_deadzone_save(unsigned channel, uint8_t percent) {
     if (channel >= PEDAL_COUNT || percent > 30) return false;
     uint32_t words[CAL_WORDS] = {percent, channel, 0, 0, PEDAL_DEADZONE_COMMIT};
+    return append_record(words);
+}
+
+bool ffb_limit_load(uint8_t *percent) {
+    for (uint32_t slot = CAL_FLASH_SIZE / CAL_SLOT_SIZE; slot > 0; --slot) {
+        const uint32_t *words = (const uint32_t *)(CAL_FLASH_START + (slot - 1) * CAL_SLOT_SIZE);
+        if (words[4] != FFB_LIMIT_COMMIT || words[0] < 10 || words[0] > 80 ||
+            words[3] != checksum(words)) continue;
+        *percent = (uint8_t)words[0];
+        return true;
+    }
+    return false;
+}
+
+bool ffb_limit_save(uint8_t percent) {
+    if (percent < 10 || percent > 80) return false;
+    uint32_t words[CAL_WORDS] = {percent, 0, 0, 0, FFB_LIMIT_COMMIT};
     return append_record(words);
 }
 

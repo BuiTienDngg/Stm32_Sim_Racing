@@ -2,6 +2,8 @@
 
 STM32F411 DIY FFB wheel with BTS7960, Hall + AS5600 steering, pedals, H shifter and USB HID. `MDK-ARM/Stimulation_steering_wheel.uvprojx` is the Keil project; `MDK-ARM/wheel_gui.py` is the Windows calibration interface.
 
+The wheel GUI's **Hiệu chuẩn → Giới hạn lực FF** slider sets the motor's maximum PWM duty from 10% to 80%. The current firmware defaults to 35% if no limit has been saved. With the game stopped and motor idle, choose a value and click **Lưu vào flash**; the limit persists across resets. This cap applies to game force, steering end stops and motor test commands. Start low if the wheel drive slips, then increase gradually. Flash the updated STM32 firmware before using this control.
+
 ## LFS dashboard on ESP32-2432S028
 
 The CYD connects to the PC through its USB-UART port. LFS sends OutGauge UDP to a Python bridge, which sends speed, RPM, gear and pedal positions to the CYD. No wire between the STM32 and ESP32 is required.
